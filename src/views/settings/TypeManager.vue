@@ -107,22 +107,22 @@
           </li>
         </ul>
       </div>
-      <input
-        type="file"
-        accept="image/*"
-        ref="editTypeImageInput"
-        style="display: none"
-        @change="handleTypeImageUpdate"
-      />
-      <input
-        type="file"
-        accept="image/*"
-        ref="editSubImageInput"
-        style="display: none"
-        @change="handleSubImageUpdate"
-      />
     </div>
-  </div>
+  <input
+    type="file"
+    accept="image/*"
+    ref="editTypeImageInput"
+    style="display: none"
+    @change="handleTypeImageUpdate"
+  />
+  <input
+    type="file"
+    accept="image/*"
+    ref="editSubImageInput"
+    style="display: none"
+    @change="handleSubImageUpdate"
+  />
+</div>
 </template>
 
 <script>
