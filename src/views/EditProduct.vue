@@ -21,11 +21,27 @@
         <div class="row">
           <div class="form-group half">
             <label>Category:</label>
-            <input v-model="product.category" type="text" required />
+            <select v-model="product.category">
+              <option disabled value="">Select Category</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+            </select>
           </div>
           <div class="form-group half">
             <label>Type:</label>
-            <input v-model="product.type" type="text" required />
+            <select v-model="product.type">
+              <option disabled value="">Select Type</option>
+              <option v-for="type in types" :key="type.id" :value="type.id">{{ type.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" v-if="subcategories.length">
+          <div class="form-group half">
+            <label>Subcategory:</label>
+            <select v-model="product.subcategory">
+              <option disabled value="">Select Subcategory</option>
+              <option v-for="sub in subcategories" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
+            </select>
           </div>
         </div>
 
@@ -103,14 +119,31 @@
 
 <script>
 import { db } from '@/firebase/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 
 export default {
   data() {
     return {
-      product: {},
+      product: { category: '', type: '', subcategory: '' },
+      categories: [],
+      types: [],
+      subcategories: [],
       uploading: false,
     };
+  },
+  watch: {
+    'product.category'(newCategoryId) {
+      this.product.type = '';
+      this.product.subcategory = '';
+      this.subcategories = [];
+      if (newCategoryId) this.fetchTypesForCategory(newCategoryId);
+      else this.types = [];
+    },
+    'product.type'(newTypeId) {
+      this.product.subcategory = '';
+      if (newTypeId) this.fetchSubCategories(this.product.category, newTypeId);
+      else this.subcategories = [];
+    }
   },
   methods: {
     async fetchProduct() {
@@ -118,10 +151,24 @@ export default {
       const docRef = doc(db, `users/${sellerId}/products/${id}`);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        this.product = docSnap.data();
-        this.product.id = id;
-        this.product.sellerId = sellerId;
+        this.product = { ...docSnap.data(), id, sellerId };
+        await this.fetchTypesForCategory(this.product.category);
+        if (this.product.type) await this.fetchSubCategories(this.product.category, this.product.type);
       }
+    },
+    async fetchCategories() {
+      const snap = await getDocs(collection(db, 'categories'));
+      this.categories = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+    },
+    async fetchTypesForCategory(categoryId) {
+      this.types = [];
+      const typesSnap = await getDocs(collection(db, `categories/${categoryId}/types`));
+      this.types = typesSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+    },
+    async fetchSubCategories(categoryId, typeId) {
+      this.subcategories = [];
+      const subSnap = await getDocs(collection(db, `categories/${categoryId}/types/${typeId}/subcategories`));
+      this.subcategories = subSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
     },
     calculatePrice() {
       const grams = parseFloat(this.product.quantity);
@@ -137,7 +184,7 @@ export default {
       if (!file) return;
       this.uploading = true;
 
-      const folder = `${this.product.category || 'default'}/${this.product.type || 'general'}`;
+      const folder = `${this.product.category || 'default'}/${this.product.type || 'general'}/${this.product.subcategory || 'misc'}`;
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', 'ml_default');
@@ -163,6 +210,7 @@ export default {
     },
   },
   mounted() {
+    this.fetchCategories();
     this.fetchProduct();
   },
 };
