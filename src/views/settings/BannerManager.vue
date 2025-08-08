@@ -15,8 +15,8 @@
       <div v-for="banner in banners" :key="banner.id" class="banner-item">
         <img :src="banner.image_url" class="banner-img" />
         <div class="banner-actions">
-          <button class="edit-btn" @click="editBanner(banner.id)">✏️</button>
-          <button class="delete-btn" @click="deleteBanner(banner.id)">🗑️</button>
+          <button class="icon-btn" @click="editBanner(banner.id)">✏️</button>
+          <button class="icon-btn danger" @click="deleteBanner(banner.id)">🗑️</button>
         </div>
       </div>
     </div>
@@ -162,17 +162,16 @@ export default {
   display: flex;
   gap: 0.5rem;
 }
-.edit-btn,
-.delete-btn {
+.icon-btn {
   background: transparent;
   border: none;
   cursor: pointer;
   font-size: 1.1rem;
 }
-.edit-btn:hover {
+.icon-btn:hover {
   color: #007aff;
 }
-.delete-btn:hover {
+.icon-btn.danger:hover {
   color: #ff5252;
 }
 </style>

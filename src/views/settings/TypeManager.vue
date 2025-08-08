@@ -47,17 +47,17 @@
             <img :src="type.image" class="type-image" />
             <p>{{ type.name }}</p>
             <div class="type-actions">
-              <button class="edit-btn" @click="editType(category.id, type)">✏️</button>
-              <button class="image-btn" @click="startTypeImageEdit(category.id, type.id)">🖼️</button>
+              <button class="icon-btn" @click="editType(category.id, type)">✏️</button>
+              <button class="icon-btn" @click="startTypeImageEdit(category.id, type.id)">🖼️</button>
               <button
                 v-if="type.image"
-                class="remove-image-btn"
+                class="icon-btn danger"
                 @click="removeTypeImage(category.id, type.id)"
               >
                 🚫
               </button>
-              <button class="delete-btn" @click="deleteType(category.id, type.id)">🗑️</button>
-              <button @click="toggleSubForm(category.id, type.id)">Add Subcategory</button>
+              <button class="icon-btn danger" @click="deleteType(category.id, type.id)">🗑️</button>
+              <button class="add-sub-btn" @click="toggleSubForm(category.id, type.id)">Add Subcategory</button>
             </div>
 
           <div v-if="showSubForm[category.id + '-' + type.id]" class="sub-form">
@@ -72,16 +72,16 @@
             <ul>
                 <li v-for="sub in type.subcategories" :key="sub.id">
                   <img :src="sub.image" class="sub-image" /> {{ sub.name }}
-                  <button class="edit-btn" @click="editSubCategory(category.id, type.id, sub)">✏️</button>
-                  <button class="image-btn" @click="startSubImageEdit(category.id, type.id, sub.id)">🖼️</button>
+                  <button class="icon-btn" @click="editSubCategory(category.id, type.id, sub)">✏️</button>
+                  <button class="icon-btn" @click="startSubImageEdit(category.id, type.id, sub.id)">🖼️</button>
                   <button
                     v-if="sub.image"
-                    class="remove-image-btn"
+                    class="icon-btn danger"
                     @click="removeSubImage(category.id, type.id, sub.id)"
                   >
                     🚫
                   </button>
-                  <button class="delete-btn" @click="deleteSubCategory(category.id, type.id, sub.id)">🗑️</button>
+                  <button class="icon-btn danger" @click="deleteSubCategory(category.id, type.id, sub.id)">🗑️</button>
                 </li>
               </ul>
             </div>
@@ -563,21 +563,27 @@ async fetchCategories() {
 .type-actions {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
-.edit-btn,
-.delete-btn,
-.image-btn,
-.remove-image-btn {
+.icon-btn {
   background: none;
   border: none;
   cursor: pointer;
 }
-.delete-btn {
+.icon-btn.danger {
   color: #e53e3e;
 }
-.remove-image-btn {
-  color: #e53e3e;
+.add-sub-btn {
+  background: #edf2ff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.add-sub-btn:hover {
+  background: #dbe4ff;
 }
 </style>

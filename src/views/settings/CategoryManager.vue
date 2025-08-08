@@ -1,6 +1,6 @@
 <template>
-  <div class="category-manager">
-    <h3>➕ Add New Category</h3>
+  <div class="category-manager settings-card">
+    <h3 class="section-title">➕ Add New Category</h3>
     <div class="form">
       <input v-model="newCategoryName" type="text" placeholder="Category Name" />
       <input type="file" accept="image/*" @change="handleImageUpload" />
@@ -10,15 +10,17 @@
 
     <div class="category-list">
       <h4>📦 Existing Categories</h4>
-      <div v-if="categories.length === 0">No categories found.</div>
-      <ul>
-        <li v-for="cat in categories" :key="cat.id">
-          <img :src="cat.image" />
-          <span>{{ cat.name }}</span>
-          <button class="edit-btn" @click="editCategory(cat)">✏️</button>
-          <button class="image-btn" @click="startImageEdit(cat)">🖼️</button>
-          <button v-if="cat.image" class="remove-image-btn" @click="removeImage(cat.id)">🚫</button>
-          <button class="delete-btn" @click="deleteCategory(cat.id)">🗑️</button>
+      <div v-if="categories.length === 0" class="empty-text">No categories found.</div>
+      <ul class="categories-grid">
+        <li v-for="cat in categories" :key="cat.id" class="category-card">
+          <img :src="cat.image" class="category-image" />
+          <p class="category-name">{{ cat.name }}</p>
+          <div class="category-actions">
+            <button class="icon-btn" @click="editCategory(cat)">✏️</button>
+            <button class="icon-btn" @click="startImageEdit(cat)">🖼️</button>
+            <button v-if="cat.image" class="icon-btn danger" @click="removeImage(cat.id)">🚫</button>
+            <button class="icon-btn danger" @click="deleteCategory(cat.id)">🗑️</button>
+          </div>
         </li>
       </ul>
     </div>
@@ -123,18 +125,26 @@ export default {
 </script>
 
 <style scoped>
+.settings-card {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
 .category-manager {
   padding: 1rem;
 }
-.category-manager h3 {
-  margin-bottom: 0.5rem;
+.section-title {
+  margin-bottom: 0.75rem;
   color: #1a3654;
+  font-size: 1.2rem;
+  font-weight: 600;
 }
 .form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: white;
+  background: #f9f9f9;
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
@@ -155,33 +165,52 @@ export default {
   font-weight: 600;
   cursor: pointer;
 }
-.category-list ul {
+.category-list {
+  margin-top: 1.5rem;
+}
+.empty-text {
+  font-style: italic;
+  color: #666;
+  margin-top: 0.5rem;
+}
+.categories-grid {
   list-style: none;
   padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
   margin-top: 1rem;
 }
-.category-list li {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 0;
+.category-card {
+  background: #f9fbfd;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
-.category-list li img {
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
+.category-image {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #ccc;
+  border: 2px solid #007aff30;
+  margin-bottom: 0.5rem;
 }
-.edit-btn,
-.delete-btn,
-.image-btn,
-.remove-image-btn {
+.category-name {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.category-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.icon-btn {
   background: none;
   border: none;
   cursor: pointer;
 }
-.delete-btn {
+.icon-btn.danger {
   color: #e53e3e;
 }
 </style>
