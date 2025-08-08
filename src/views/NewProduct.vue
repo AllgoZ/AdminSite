@@ -265,9 +265,14 @@ async submitProduct() {
   if (!this.product.sellerId) return alert("Please select a seller");
 
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
+  const categoryObj = this.categories.find(c => c.id === this.product.category);
+  const rawCategory = categoryObj ? categoryObj.name : this.product.category;
+  const formattedCategory = rawCategory
+    ? rawCategory.charAt(0).toUpperCase() + rawCategory.slice(1)
+    : '';
   await setDoc(ref, {
     ...this.product,
-    category: (this.categories.find(c => c.id === this.product.category)?.name) || this.capitalize(this.product.category),
+    category: formattedCategory,
     createdAt: serverTimestamp(),
     salesCount: 0,
     totalQuantity: null,
@@ -287,9 +292,14 @@ async saveAndAddAnother() {
   if (!this.product.sellerId) return alert("Please select a seller");
 
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
+  const categoryObj = this.categories.find(c => c.id === this.product.category);
+  const rawCategory = categoryObj ? categoryObj.name : this.product.category;
+  const formattedCategory = rawCategory
+    ? rawCategory.charAt(0).toUpperCase() + rawCategory.slice(1)
+    : '';
   await setDoc(ref, {
     ...this.product,
-    category: (this.categories.find(c => c.id === this.product.category)?.name) || this.capitalize(this.product.category),
+    category: formattedCategory,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     salesCount: 0,

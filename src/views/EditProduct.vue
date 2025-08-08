@@ -236,7 +236,10 @@ export default {
     async saveProduct() {
       const productRef = doc(db, `users/${this.product.sellerId}/products/${this.product.id}`);
       const categoryObj = this.categories.find(c => c.id === this.product.category);
-      const categoryName = categoryObj ? categoryObj.name : this.capitalize(this.product.category);
+      const rawCategory = categoryObj ? categoryObj.name : this.product.category;
+      const formattedCategory = rawCategory
+        ? rawCategory.charAt(0).toUpperCase() + rawCategory.slice(1)
+        : '';
       const tags = Array.isArray(this.product.tags)
         ? this.product.tags
         : (this.product.tags || '')
@@ -245,7 +248,7 @@ export default {
             .filter(t => t);
       await updateDoc(productRef, {
         ...this.product,
-        category: categoryName,
+        category: formattedCategory,
         tags,
       });
       alert('Product updated successfully!');
