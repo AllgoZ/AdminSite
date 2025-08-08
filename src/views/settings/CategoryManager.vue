@@ -15,15 +15,26 @@
         <li v-for="cat in categories" :key="cat.id">
           <img :src="cat.image" />
           <span>{{ cat.name }}</span>
+          <button class="edit-btn" @click="editCategory(cat)">✏️</button>
+          <button class="image-btn" @click="startImageEdit(cat)">🖼️</button>
+          <button v-if="cat.image" class="remove-image-btn" @click="removeImage(cat.id)">🚫</button>
+          <button class="delete-btn" @click="deleteCategory(cat.id)">🗑️</button>
         </li>
       </ul>
     </div>
+    <input
+      type="file"
+      accept="image/*"
+      ref="editImageInput"
+      style="display: none"
+      @change="handleImageUpdate"
+    />
   </div>
 </template>
 
 <script>
 import { db } from '@/firebase/firebase';
-import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, setDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 export default {
   data() {
@@ -33,7 +44,8 @@ export default {
       previewImage: null,
       categories: [],
       cloudName: 'dc9rsnop8',
-      uploadPreset: 'ml_default'
+      uploadPreset: 'ml_default',
+      editingCategoryId: null
     };
   },
   methods: {
@@ -72,6 +84,35 @@ export default {
       this.newCategoryName = '';
       this.selectedImage = null;
       this.previewImage = null;
+      this.fetchCategories();
+    },
+    async editCategory(cat) {
+      const newName = prompt('Enter new category name', cat.name);
+      if (!newName) return;
+      await updateDoc(doc(db, 'categories', cat.id), { name: newName });
+      this.fetchCategories();
+    },
+    startImageEdit(cat) {
+      this.editingCategoryId = cat.id;
+      this.$refs.editImageInput.click();
+    },
+    async handleImageUpdate(event) {
+      const file = event.target.files[0];
+      if (!file || !this.editingCategoryId) return;
+      const imageUrl = await this.uploadToCloudinary(file);
+      await updateDoc(doc(db, 'categories', this.editingCategoryId), { image: imageUrl });
+      this.fetchCategories();
+      this.editingCategoryId = null;
+      event.target.value = '';
+    },
+    async removeImage(id) {
+      if (!confirm('Remove image from this category?')) return;
+      await updateDoc(doc(db, 'categories', id), { image: '' });
+      this.fetchCategories();
+    },
+    async deleteCategory(id) {
+      if (!confirm('Delete this category?')) return;
+      await deleteDoc(doc(db, 'categories', id));
       this.fetchCategories();
     }
   },
@@ -131,5 +172,16 @@ export default {
   border-radius: 6px;
   object-fit: cover;
   border: 1px solid #ccc;
+}
+.edit-btn,
+.delete-btn,
+.image-btn,
+.remove-image-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.delete-btn {
+  color: #e53e3e;
 }
 </style>

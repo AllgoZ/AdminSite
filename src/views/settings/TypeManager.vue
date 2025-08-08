@@ -39,14 +39,18 @@
       </div>
 
       <div v-if="category.types.length" class="types-grid">
-        <div
-          v-for="type in category.types"
-          :key="type.id"
-          class="type-card"
-        >
-          <img :src="type.image" class="type-image" />
-          <p>{{ type.name }}</p>
-          <button @click="toggleSubForm(category.id, type.id)">Add Subcategory</button>
+          <div
+            v-for="type in category.types"
+            :key="type.id"
+            class="type-card"
+          >
+            <img :src="type.image" class="type-image" />
+            <p>{{ type.name }}</p>
+            <div class="type-actions">
+              <button class="edit-btn" @click="editType(category.id, type)">✏️</button>
+              <button class="delete-btn" @click="deleteType(category.id, type.id)">🗑️</button>
+              <button @click="toggleSubForm(category.id, type.id)">Add Subcategory</button>
+            </div>
 
           <div v-if="showSubForm[category.id + '-' + type.id]" class="sub-form">
             <input v-model="subCategoryNames[category.id + '-' + type.id]" placeholder="Subcategory Name" class="input" />
@@ -58,13 +62,15 @@
           <div v-if="type.subcategories && type.subcategories.length" class="sub-list">
             <h5>Subcategories:</h5>
             <ul>
-              <li v-for="sub in type.subcategories" :key="sub.id">
-                <img :src="sub.image" class="sub-image" /> {{ sub.name }}
-              </li>
-            </ul>
+                <li v-for="sub in type.subcategories" :key="sub.id">
+                  <img :src="sub.image" class="sub-image" /> {{ sub.name }}
+                  <button class="edit-btn" @click="editSubCategory(category.id, type.id, sub)">✏️</button>
+                  <button class="delete-btn" @click="deleteSubCategory(category.id, type.id, sub.id)">🗑️</button>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
 
       <!-- Hierarchical View -->
       <div class="hierarchy">
@@ -96,6 +102,8 @@ import {
   getDocs,
   doc,
   setDoc,
+  updateDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 
 export default {
@@ -198,6 +206,24 @@ async fetchCategories() {
       const key = `${catId}-${typeId}`;
       this.showSubForm = { ...this.showSubForm, [key]: !this.showSubForm[key] };
     },
+    async editType(catId, type) {
+      const newName = prompt('Enter new type name', type.name);
+      if (!newName) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), type.id);
+      await updateDoc(typeRef, { name: newName });
+      const cat = this.categories.find(c => c.id === catId);
+      const t = cat.types.find(t => t.id === type.id);
+      if (t) t.name = newName;
+    },
+    async deleteType(catId, typeId) {
+      if (!confirm('Delete this type?')) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      await deleteDoc(typeRef);
+      const cat = this.categories.find(c => c.id === catId);
+      if (cat) cat.types = cat.types.filter(t => t.id !== typeId);
+    },
     async addSubCategory(catId, typeId) {
       const key = `${catId}-${typeId}`;
       const name = this.subCategoryNames[key];
@@ -221,6 +247,28 @@ async fetchCategories() {
         console.error("Error adding subcategory:", error);
         alert("Failed to add subcategory.");
       }
+    },
+    async editSubCategory(catId, typeId, sub) {
+      const newName = prompt('Enter new subcategory name', sub.name);
+      if (!newName) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      const subRef = doc(collection(typeRef, 'subcategories'), sub.id);
+      await updateDoc(subRef, { name: newName });
+      const cat = this.categories.find(c => c.id === catId);
+      const type = cat.types.find(t => t.id === typeId);
+      const s = type.subcategories.find(sc => sc.id === sub.id);
+      if (s) s.name = newName;
+    },
+    async deleteSubCategory(catId, typeId, subId) {
+      if (!confirm('Delete this subcategory?')) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      const subRef = doc(collection(typeRef, 'subcategories'), subId);
+      await deleteDoc(subRef);
+      const cat = this.categories.find(c => c.id === catId);
+      const type = cat.types.find(t => t.id === typeId);
+      if (type) type.subcategories = type.subcategories.filter(s => s.id !== subId);
     },
   },
   mounted() {
@@ -423,5 +471,20 @@ async fetchCategories() {
   border-radius: 50%;
   margin-bottom: 0.5rem;
   border: 2px solid #007aff30;
+}
+.type-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.edit-btn,
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.delete-btn {
+  color: #e53e3e;
 }
 </style>
