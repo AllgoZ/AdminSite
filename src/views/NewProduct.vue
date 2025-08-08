@@ -25,8 +25,18 @@
             <label>Type:</label>
               <select v-model="product.type" class="colored-field">
                 <option disabled value="">Select Type</option>
-                <option v-for="type in types" :key="type">{{ type }}</option>
+                <option v-for="type in types" :key="type.id" :value="type.name">{{ type.name }}</option>
               </select>
+          </div>
+        </div>
+
+        <div class="row" v-if="subcategories.length">
+          <div class="form-group half">
+            <label>Subcategory:</label>
+            <select v-model="product.subcategory" class="colored-field">
+              <option disabled value="">Select Subcategory</option>
+              <option v-for="sub in subcategories" :key="sub.id" :value="sub.name">{{ sub.name }}</option>
+            </select>
           </div>
         </div>
 
@@ -134,6 +144,7 @@ export default {
         name: '',
         category: '',
         type: '',
+        subcategory: '',
         quantity: 0,
         unit: 'Gram',
         pricePerKg: null,
@@ -149,29 +160,60 @@ export default {
       },
       categories: [],
       types: [],
+      subcategories: [],
       sellers: [],
       uploading: false
     };
   },
   watch: {
-    'product.category'(newCategoryId) {
-      if (newCategoryId) this.fetchTypesForCategory(newCategoryId);
-      else this.types = [];
+    'product.category'(newCategoryId, oldCategoryId) {
+      if (newCategoryId) {
+        this.fetchTypesForCategory(newCategoryId);
+        if (oldCategoryId) {
+          this.product.type = '';
+          this.product.subcategory = '';
+          this.subcategories = [];
+        }
+      } else {
+        this.types = [];
+        this.subcategories = [];
+        this.product.type = '';
+        this.product.subcategory = '';
+      }
+    },
+    'product.type'(newTypeName, oldTypeName) {
+      const typeObj = this.types.find(t => t.name === newTypeName);
+      if (typeObj) {
+        this.fetchSubCategories(this.product.category, typeObj.id);
+        if (oldTypeName) this.product.subcategory = '';
+      } else {
+        this.subcategories = [];
+        this.product.subcategory = '';
+      }
     }
   },
   methods: {
+    capitalize(str) {
+      return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
     async fetchCategories() {
       const snap = await getDocs(collection(db, 'categories'));
       this.categories = snap.docs.map(doc => ({
         id: doc.id,
-        name: doc.data().name
+        name: this.capitalize(doc.data().name)
       }));
     },
 
     async fetchTypesForCategory(categoryId) {
       this.types = [];
       const typesSnap = await getDocs(collection(db, `categories/${categoryId}/types`));
-      this.types = typesSnap.docs.map(doc => doc.data().name);
+      this.types = typesSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+    },
+
+    async fetchSubCategories(categoryId, typeId) {
+      this.subcategories = [];
+      const subSnap = await getDocs(collection(db, `categories/${categoryId}/types/${typeId}/subcategories`));
+      this.subcategories = subSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
     },
 
     async fetchSellers() {
@@ -201,7 +243,7 @@ export default {
       const file = e.target.files[0];
       if (!file) return;
       this.uploading = true;
-      const folder = `${this.product.category || 'default'}/${this.product.type || 'general'}`;
+      const folder = `${this.product.category || 'default'}/${this.product.type || 'general'}/${this.product.subcategory || 'misc'}`;
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', 'ml_default');
@@ -222,12 +264,14 @@ async submitProduct() {
   if (!productId) return alert("Product name is required");
   if (!this.product.sellerId) return alert("Please select a seller");
 
-  // Capitalize category name
-  this.product.category = this.product.category.charAt(0).toUpperCase() + this.product.category.slice(1);
-
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
+  const categoryObj = this.categories.find(c => c.id === this.product.category);
+  let rawCategory = categoryObj ? categoryObj.name : this.product.category;
+  rawCategory = rawCategory.split('/')[0].trim();
+  const formattedCategory = this.capitalize(rawCategory);
   await setDoc(ref, {
     ...this.product,
+    category: formattedCategory,
     createdAt: serverTimestamp(),
     salesCount: 0,
     totalQuantity: null,
@@ -246,12 +290,14 @@ async saveAndAddAnother() {
   if (!productId) return alert("Product name is required");
   if (!this.product.sellerId) return alert("Please select a seller");
 
-  // Capitalize category name
-  this.product.category = this.product.category.charAt(0).toUpperCase() + this.product.category.slice(1);
-
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
+  const categoryObj = this.categories.find(c => c.id === this.product.category);
+  let rawCategory = categoryObj ? categoryObj.name : this.product.category;
+  rawCategory = rawCategory.split('/')[0].trim();
+  const formattedCategory = this.capitalize(rawCategory);
   await setDoc(ref, {
     ...this.product,
+    category: formattedCategory,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     salesCount: 0,
@@ -268,6 +314,7 @@ async saveAndAddAnother() {
     name: '',
     category: '',
     type: '',
+    subcategory: '',
     quantity: 0,
     unit: 'Gram',
     pricePerKg: null,

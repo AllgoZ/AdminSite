@@ -21,11 +21,27 @@
         <div class="row">
           <div class="form-group half">
             <label>Category:</label>
-            <input v-model="product.category" type="text" required />
+            <select v-model="product.category">
+              <option disabled value="">Select Category</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+            </select>
           </div>
           <div class="form-group half">
             <label>Type:</label>
-            <input v-model="product.type" type="text" required />
+            <select v-model="product.type">
+              <option disabled value="">Select Type</option>
+              <option v-for="type in types" :key="type.id" :value="type.name">{{ type.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" v-if="subcategories.length">
+          <div class="form-group half">
+            <label>Subcategory:</label>
+            <select v-model="product.subcategory">
+              <option disabled value="">Select Subcategory</option>
+              <option v-for="sub in subcategories" :key="sub.id" :value="sub.name">{{ sub.name }}</option>
+            </select>
           </div>
         </div>
 
@@ -103,25 +119,90 @@
 
 <script>
 import { db } from '@/firebase/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 
 export default {
   data() {
     return {
-      product: {},
+      product: { category: '', type: '', subcategory: '' },
+      categories: [],
+      types: [],
+      subcategories: [],
       uploading: false,
+      initializing: true,
     };
   },
+  watch: {
+    'product.category'(newCategoryId, oldCategoryId) {
+      if (this.initializing) return;
+      if (newCategoryId) {
+        this.fetchTypesForCategory(newCategoryId).then(() => {
+          const typeObj = this.types.find(t => t.name === this.product.type);
+          if (typeObj) this.fetchSubCategories(newCategoryId, typeObj.id);
+        });
+        if (oldCategoryId) {
+          this.product.type = '';
+          this.product.subcategory = '';
+          this.subcategories = [];
+        }
+      } else {
+        this.types = [];
+        this.subcategories = [];
+        this.product.type = '';
+        this.product.subcategory = '';
+      }
+    },
+    'product.type'(newTypeName, oldTypeName) {
+      if (this.initializing) return;
+      const typeObj = this.types.find(t => t.name === newTypeName);
+      if (typeObj) {
+        this.fetchSubCategories(this.product.category, typeObj.id);
+        if (oldTypeName) this.product.subcategory = '';
+      } else {
+        this.subcategories = [];
+        this.product.subcategory = '';
+      }
+    }
+  },
   methods: {
+    capitalize(str) {
+      return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
     async fetchProduct() {
       const { id, sellerId } = this.$route.params;
       const docRef = doc(db, `users/${sellerId}/products/${id}`);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        this.product = docSnap.data();
-        this.product.id = id;
-        this.product.sellerId = sellerId;
+        const data = docSnap.data();
+        this.product = { ...data, id, sellerId };
+        if (Array.isArray(this.product.tags)) {
+          this.product.tags = this.product.tags.join(', ');
+        }
+        const catEntry = this.categories.find(c => c.name.split('/')[0].trim().toLowerCase() === data.category?.toLowerCase());
+        if (catEntry) {
+          this.product.category = catEntry.id;
+          await this.fetchTypesForCategory(catEntry.id);
+          const typeEntry = this.types.find(t => t.name === data.type);
+          if (typeEntry) {
+            await this.fetchSubCategories(catEntry.id, typeEntry.id);
+          }
+        }
       }
+      this.initializing = false;
+    },
+    async fetchCategories() {
+      const snap = await getDocs(collection(db, 'categories'));
+      this.categories = snap.docs.map(doc => ({ id: doc.id, name: this.capitalize(doc.data().name) }));
+    },
+    async fetchTypesForCategory(categoryId) {
+      this.types = [];
+      const typesSnap = await getDocs(collection(db, `categories/${categoryId}/types`));
+      this.types = typesSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+    },
+    async fetchSubCategories(categoryId, typeId) {
+      this.subcategories = [];
+      const subSnap = await getDocs(collection(db, `categories/${categoryId}/types/${typeId}/subcategories`));
+      this.subcategories = subSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
     },
     calculatePrice() {
       const grams = parseFloat(this.product.quantity);
@@ -137,7 +218,7 @@ export default {
       if (!file) return;
       this.uploading = true;
 
-      const folder = `${this.product.category || 'default'}/${this.product.type || 'general'}`;
+      const folder = `${this.product.category || 'default'}/${this.product.type || 'general'}/${this.product.subcategory || 'misc'}`;
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', 'ml_default');
@@ -154,16 +235,28 @@ export default {
     },
     async saveProduct() {
       const productRef = doc(db, `users/${this.product.sellerId}/products/${this.product.id}`);
+      const categoryObj = this.categories.find(c => c.id === this.product.category);
+      let rawCategory = categoryObj ? categoryObj.name : this.product.category;
+      rawCategory = rawCategory.split('/')[0].trim();
+      const formattedCategory = this.capitalize(rawCategory);
+      const tags = Array.isArray(this.product.tags)
+        ? this.product.tags
+        : (this.product.tags || '')
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t);
       await updateDoc(productRef, {
         ...this.product,
-        tags: this.product.tags?.split(',').map(t => t.trim()) || [],
+        category: formattedCategory,
+        tags,
       });
       alert('Product updated successfully!');
       this.$router.push({ name: 'ProductManager' });
     },
   },
-  mounted() {
-    this.fetchProduct();
+  async mounted() {
+    await this.fetchCategories();
+    await this.fetchProduct();
   },
 };
 </script>
