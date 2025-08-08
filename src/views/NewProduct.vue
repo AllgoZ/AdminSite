@@ -193,11 +193,14 @@ export default {
     }
   },
   methods: {
+    capitalize(str) {
+      return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
     async fetchCategories() {
       const snap = await getDocs(collection(db, 'categories'));
       this.categories = snap.docs.map(doc => ({
         id: doc.id,
-        name: doc.data().name
+        name: this.capitalize(doc.data().name)
       }));
     },
 
@@ -264,6 +267,7 @@ async submitProduct() {
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
   await setDoc(ref, {
     ...this.product,
+    category: (this.categories.find(c => c.id === this.product.category)?.name) || this.capitalize(this.product.category),
     createdAt: serverTimestamp(),
     salesCount: 0,
     totalQuantity: null,
@@ -285,6 +289,7 @@ async saveAndAddAnother() {
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
   await setDoc(ref, {
     ...this.product,
+    category: (this.categories.find(c => c.id === this.product.category)?.name) || this.capitalize(this.product.category),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     salesCount: 0,

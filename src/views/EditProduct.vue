@@ -129,10 +129,12 @@ export default {
       types: [],
       subcategories: [],
       uploading: false,
+      initializing: true,
     };
   },
   watch: {
     'product.category'(newCategoryId, oldCategoryId) {
+      if (this.initializing) return;
       if (newCategoryId) {
         this.fetchTypesForCategory(newCategoryId).then(() => {
           const typeObj = this.types.find(t => t.name === this.product.type);
@@ -151,6 +153,7 @@ export default {
       }
     },
     'product.type'(newTypeName, oldTypeName) {
+      if (this.initializing) return;
       const typeObj = this.types.find(t => t.name === newTypeName);
       if (typeObj) {
         this.fetchSubCategories(this.product.category, typeObj.id);
@@ -162,17 +165,34 @@ export default {
     }
   },
   methods: {
+    capitalize(str) {
+      return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
     async fetchProduct() {
       const { id, sellerId } = this.$route.params;
       const docRef = doc(db, `users/${sellerId}/products/${id}`);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        this.product = { ...docSnap.data(), id, sellerId };
+        const data = docSnap.data();
+        this.product = { ...data, id, sellerId };
+        if (Array.isArray(this.product.tags)) {
+          this.product.tags = this.product.tags.join(', ');
+        }
+        const catEntry = this.categories.find(c => c.name.toLowerCase() === data.category?.toLowerCase());
+        if (catEntry) {
+          this.product.category = catEntry.id;
+          await this.fetchTypesForCategory(catEntry.id);
+          const typeEntry = this.types.find(t => t.name === data.type);
+          if (typeEntry) {
+            await this.fetchSubCategories(catEntry.id, typeEntry.id);
+          }
+        }
       }
+      this.initializing = false;
     },
     async fetchCategories() {
       const snap = await getDocs(collection(db, 'categories'));
-      this.categories = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+      this.categories = snap.docs.map(doc => ({ id: doc.id, name: this.capitalize(doc.data().name) }));
     },
     async fetchTypesForCategory(categoryId) {
       this.types = [];
@@ -215,17 +235,26 @@ export default {
     },
     async saveProduct() {
       const productRef = doc(db, `users/${this.product.sellerId}/products/${this.product.id}`);
+      const categoryObj = this.categories.find(c => c.id === this.product.category);
+      const categoryName = categoryObj ? categoryObj.name : this.capitalize(this.product.category);
+      const tags = Array.isArray(this.product.tags)
+        ? this.product.tags
+        : (this.product.tags || '')
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t);
       await updateDoc(productRef, {
         ...this.product,
-        tags: this.product.tags?.split(',').map(t => t.trim()) || [],
+        category: categoryName,
+        tags,
       });
       alert('Product updated successfully!');
       this.$router.push({ name: 'ProductManager' });
     },
   },
-  mounted() {
-    this.fetchCategories();
-    this.fetchProduct();
+  async mounted() {
+    await this.fetchCategories();
+    await this.fetchProduct();
   },
 };
 </script>
