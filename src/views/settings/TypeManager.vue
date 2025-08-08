@@ -39,14 +39,26 @@
       </div>
 
       <div v-if="category.types.length" class="types-grid">
-        <div
-          v-for="type in category.types"
-          :key="type.id"
-          class="type-card"
-        >
-          <img :src="type.image" class="type-image" />
-          <p>{{ type.name }}</p>
-          <button @click="toggleSubForm(category.id, type.id)">Add Subcategory</button>
+          <div
+            v-for="type in category.types"
+            :key="type.id"
+            class="type-card"
+          >
+            <img :src="type.image" class="type-image" />
+            <p>{{ type.name }}</p>
+            <div class="type-actions">
+              <button class="icon-btn" @click="editType(category.id, type)">✏️</button>
+              <button class="icon-btn" @click="startTypeImageEdit(category.id, type.id)">🖼️</button>
+              <button
+                v-if="type.image"
+                class="icon-btn danger"
+                @click="removeTypeImage(category.id, type.id)"
+              >
+                🚫
+              </button>
+              <button class="icon-btn danger" @click="deleteType(category.id, type.id)">🗑️</button>
+              <button class="add-sub-btn" @click="toggleSubForm(category.id, type.id)">Add Subcategory</button>
+            </div>
 
           <div v-if="showSubForm[category.id + '-' + type.id]" class="sub-form">
             <input v-model="subCategoryNames[category.id + '-' + type.id]" placeholder="Subcategory Name" class="input" />
@@ -58,13 +70,23 @@
           <div v-if="type.subcategories && type.subcategories.length" class="sub-list">
             <h5>Subcategories:</h5>
             <ul>
-              <li v-for="sub in type.subcategories" :key="sub.id">
-                <img :src="sub.image" class="sub-image" /> {{ sub.name }}
-              </li>
-            </ul>
+                <li v-for="sub in type.subcategories" :key="sub.id">
+                  <img :src="sub.image" class="sub-image" /> {{ sub.name }}
+                  <button class="icon-btn" @click="editSubCategory(category.id, type.id, sub)">✏️</button>
+                  <button class="icon-btn" @click="startSubImageEdit(category.id, type.id, sub.id)">🖼️</button>
+                  <button
+                    v-if="sub.image"
+                    class="icon-btn danger"
+                    @click="removeSubImage(category.id, type.id, sub.id)"
+                  >
+                    🚫
+                  </button>
+                  <button class="icon-btn danger" @click="deleteSubCategory(category.id, type.id, sub.id)">🗑️</button>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
 
       <!-- Hierarchical View -->
       <div class="hierarchy">
@@ -86,7 +108,21 @@
         </ul>
       </div>
     </div>
-  </div>
+  <input
+    type="file"
+    accept="image/*"
+    ref="editTypeImageInput"
+    style="display: none"
+    @change="handleTypeImageUpdate"
+  />
+  <input
+    type="file"
+    accept="image/*"
+    ref="editSubImageInput"
+    style="display: none"
+    @change="handleSubImageUpdate"
+  />
+</div>
 </template>
 
 <script>
@@ -96,6 +132,8 @@ import {
   getDocs,
   doc,
   setDoc,
+  updateDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 
 export default {
@@ -108,6 +146,8 @@ export default {
       showSubForm: {},
       subCategoryNames: {},
       subCategoryImages: {},
+      editingType: null,
+      editingSub: null,
     };
   },
   methods: {
@@ -198,6 +238,50 @@ async fetchCategories() {
       const key = `${catId}-${typeId}`;
       this.showSubForm = { ...this.showSubForm, [key]: !this.showSubForm[key] };
     },
+    startTypeImageEdit(catId, typeId) {
+      this.editingType = { catId, typeId };
+      this.$refs.editTypeImageInput.click();
+    },
+    async handleTypeImageUpdate(event) {
+      const file = event.target.files[0];
+      if (!file || !this.editingType) return;
+      const imageUrl = await this.uploadToCloudinary(file);
+      const catRef = doc(db, 'categories', this.editingType.catId);
+      const typeRef = doc(collection(catRef, 'types'), this.editingType.typeId);
+      await updateDoc(typeRef, { image: imageUrl });
+      const cat = this.categories.find(c => c.id === this.editingType.catId);
+      const type = cat.types.find(t => t.id === this.editingType.typeId);
+      if (type) type.image = imageUrl;
+      this.editingType = null;
+      event.target.value = '';
+    },
+    async removeTypeImage(catId, typeId) {
+      if (!confirm('Remove image from this type?')) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      await updateDoc(typeRef, { image: '' });
+      const cat = this.categories.find(c => c.id === catId);
+      const type = cat.types.find(t => t.id === typeId);
+      if (type) type.image = '';
+    },
+    async editType(catId, type) {
+      const newName = prompt('Enter new type name', type.name);
+      if (!newName) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), type.id);
+      await updateDoc(typeRef, { name: newName });
+      const cat = this.categories.find(c => c.id === catId);
+      const t = cat.types.find(t => t.id === type.id);
+      if (t) t.name = newName;
+    },
+    async deleteType(catId, typeId) {
+      if (!confirm('Delete this type?')) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      await deleteDoc(typeRef);
+      const cat = this.categories.find(c => c.id === catId);
+      if (cat) cat.types = cat.types.filter(t => t.id !== typeId);
+    },
     async addSubCategory(catId, typeId) {
       const key = `${catId}-${typeId}`;
       const name = this.subCategoryNames[key];
@@ -221,6 +305,58 @@ async fetchCategories() {
         console.error("Error adding subcategory:", error);
         alert("Failed to add subcategory.");
       }
+    },
+    startSubImageEdit(catId, typeId, subId) {
+      this.editingSub = { catId, typeId, subId };
+      this.$refs.editSubImageInput.click();
+    },
+    async handleSubImageUpdate(event) {
+      const file = event.target.files[0];
+      if (!file || !this.editingSub) return;
+      const imageUrl = await this.uploadToCloudinary(file);
+      const catRef = doc(db, 'categories', this.editingSub.catId);
+      const typeRef = doc(collection(catRef, 'types'), this.editingSub.typeId);
+      const subRef = doc(collection(typeRef, 'subcategories'), this.editingSub.subId);
+      await updateDoc(subRef, { image: imageUrl });
+      const cat = this.categories.find(c => c.id === this.editingSub.catId);
+      const type = cat.types.find(t => t.id === this.editingSub.typeId);
+      const sub = type.subcategories.find(s => s.id === this.editingSub.subId);
+      if (sub) sub.image = imageUrl;
+      this.editingSub = null;
+      event.target.value = '';
+    },
+    async removeSubImage(catId, typeId, subId) {
+      if (!confirm('Remove image from this subcategory?')) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      const subRef = doc(collection(typeRef, 'subcategories'), subId);
+      await updateDoc(subRef, { image: '' });
+      const cat = this.categories.find(c => c.id === catId);
+      const type = cat.types.find(t => t.id === typeId);
+      const sub = type.subcategories.find(s => s.id === subId);
+      if (sub) sub.image = '';
+    },
+    async editSubCategory(catId, typeId, sub) {
+      const newName = prompt('Enter new subcategory name', sub.name);
+      if (!newName) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      const subRef = doc(collection(typeRef, 'subcategories'), sub.id);
+      await updateDoc(subRef, { name: newName });
+      const cat = this.categories.find(c => c.id === catId);
+      const type = cat.types.find(t => t.id === typeId);
+      const s = type.subcategories.find(sc => sc.id === sub.id);
+      if (s) s.name = newName;
+    },
+    async deleteSubCategory(catId, typeId, subId) {
+      if (!confirm('Delete this subcategory?')) return;
+      const catRef = doc(db, 'categories', catId);
+      const typeRef = doc(collection(catRef, 'types'), typeId);
+      const subRef = doc(collection(typeRef, 'subcategories'), subId);
+      await deleteDoc(subRef);
+      const cat = this.categories.find(c => c.id === catId);
+      const type = cat.types.find(t => t.id === typeId);
+      if (type) type.subcategories = type.subcategories.filter(s => s.id !== subId);
     },
   },
   mounted() {
@@ -423,5 +559,31 @@ async fetchCategories() {
   border-radius: 50%;
   margin-bottom: 0.5rem;
   border: 2px solid #007aff30;
+}
+.type-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.icon-btn.danger {
+  color: #e53e3e;
+}
+.add-sub-btn {
+  background: #edf2ff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.add-sub-btn:hover {
+  background: #dbe4ff;
 }
 </style>
