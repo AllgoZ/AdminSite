@@ -30,7 +30,7 @@
             <label>Type:</label>
             <select v-model="product.type">
               <option disabled value="">Select Type</option>
-              <option v-for="type in types" :key="type.id" :value="type.id">{{ type.name }}</option>
+              <option v-for="type in types" :key="type.id" :value="type.name">{{ type.name }}</option>
             </select>
           </div>
         </div>
@@ -40,7 +40,7 @@
             <label>Subcategory:</label>
             <select v-model="product.subcategory">
               <option disabled value="">Select Subcategory</option>
-              <option v-for="sub in subcategories" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
+              <option v-for="sub in subcategories" :key="sub.id" :value="sub.name">{{ sub.name }}</option>
             </select>
           </div>
         </div>
@@ -132,17 +132,33 @@ export default {
     };
   },
   watch: {
-    'product.category'(newCategoryId) {
-      this.product.type = '';
-      this.product.subcategory = '';
-      this.subcategories = [];
-      if (newCategoryId) this.fetchTypesForCategory(newCategoryId);
-      else this.types = [];
+    'product.category'(newCategoryId, oldCategoryId) {
+      if (newCategoryId) {
+        this.fetchTypesForCategory(newCategoryId).then(() => {
+          const typeObj = this.types.find(t => t.name === this.product.type);
+          if (typeObj) this.fetchSubCategories(newCategoryId, typeObj.id);
+        });
+        if (oldCategoryId) {
+          this.product.type = '';
+          this.product.subcategory = '';
+          this.subcategories = [];
+        }
+      } else {
+        this.types = [];
+        this.subcategories = [];
+        this.product.type = '';
+        this.product.subcategory = '';
+      }
     },
-    'product.type'(newTypeId) {
-      this.product.subcategory = '';
-      if (newTypeId) this.fetchSubCategories(this.product.category, newTypeId);
-      else this.subcategories = [];
+    'product.type'(newTypeName, oldTypeName) {
+      const typeObj = this.types.find(t => t.name === newTypeName);
+      if (typeObj) {
+        this.fetchSubCategories(this.product.category, typeObj.id);
+        if (oldTypeName) this.product.subcategory = '';
+      } else {
+        this.subcategories = [];
+        this.product.subcategory = '';
+      }
     }
   },
   methods: {
@@ -152,8 +168,6 @@ export default {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         this.product = { ...docSnap.data(), id, sellerId };
-        await this.fetchTypesForCategory(this.product.category);
-        if (this.product.type) await this.fetchSubCategories(this.product.category, this.product.type);
       }
     },
     async fetchCategories() {
