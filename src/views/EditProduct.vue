@@ -178,7 +178,7 @@ export default {
         if (Array.isArray(this.product.tags)) {
           this.product.tags = this.product.tags.join(', ');
         }
-        const catEntry = this.categories.find(c => c.name.toLowerCase() === data.category?.toLowerCase());
+        const catEntry = this.categories.find(c => c.name.split('/')[0].trim().toLowerCase() === data.category?.toLowerCase());
         if (catEntry) {
           this.product.category = catEntry.id;
           await this.fetchTypesForCategory(catEntry.id);
@@ -236,10 +236,9 @@ export default {
     async saveProduct() {
       const productRef = doc(db, `users/${this.product.sellerId}/products/${this.product.id}`);
       const categoryObj = this.categories.find(c => c.id === this.product.category);
-      const rawCategory = categoryObj ? categoryObj.name : this.product.category;
-      const formattedCategory = rawCategory
-        ? rawCategory.charAt(0).toUpperCase() + rawCategory.slice(1)
-        : '';
+      let rawCategory = categoryObj ? categoryObj.name : this.product.category;
+      rawCategory = rawCategory.split('/')[0].trim();
+      const formattedCategory = this.capitalize(rawCategory);
       const tags = Array.isArray(this.product.tags)
         ? this.product.tags
         : (this.product.tags || '')

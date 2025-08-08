@@ -266,10 +266,9 @@ async submitProduct() {
 
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
   const categoryObj = this.categories.find(c => c.id === this.product.category);
-  const rawCategory = categoryObj ? categoryObj.name : this.product.category;
-  const formattedCategory = rawCategory
-    ? rawCategory.charAt(0).toUpperCase() + rawCategory.slice(1)
-    : '';
+  let rawCategory = categoryObj ? categoryObj.name : this.product.category;
+  rawCategory = rawCategory.split('/')[0].trim();
+  const formattedCategory = this.capitalize(rawCategory);
   await setDoc(ref, {
     ...this.product,
     category: formattedCategory,
@@ -293,10 +292,9 @@ async saveAndAddAnother() {
 
   const ref = doc(db, `users/${this.product.sellerId}/products/${productId}`);
   const categoryObj = this.categories.find(c => c.id === this.product.category);
-  const rawCategory = categoryObj ? categoryObj.name : this.product.category;
-  const formattedCategory = rawCategory
-    ? rawCategory.charAt(0).toUpperCase() + rawCategory.slice(1)
-    : '';
+  let rawCategory = categoryObj ? categoryObj.name : this.product.category;
+  rawCategory = rawCategory.split('/')[0].trim();
+  const formattedCategory = this.capitalize(rawCategory);
   await setDoc(ref, {
     ...this.product,
     category: formattedCategory,
