@@ -6,6 +6,7 @@ import NewProduct from './views/NewProduct.vue';
 import LoginPage from './views/LoginPage.vue';
 import OverviewAnalytics from './views/OverviewAnalytics.vue';
 import SettingsPage from './views/SettingsPage.vue';
+import CustomersPage from './views/CustomersPage.vue';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const routes = [
@@ -38,6 +39,12 @@ const routes = [
     path: '/overview-analytics',
     name: 'OverviewAnalytics',
     component: OverviewAnalytics,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/customers',
+    name: 'CustomersPage',
+    component: CustomersPage,
     meta: { requiresAuth: true }
   },
   {

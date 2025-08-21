@@ -11,6 +11,7 @@
           <li><router-link to="/product-management" class="nav-link">Product Management</router-link></li>
           <li><router-link to="/overview-analytics" class="nav-link router-link-active">Overview & Analytics</router-link></li>
           <li><router-link to="/order-management" class="nav-link">Order Management</router-link></li>
+          <li><router-link to="/customers" class="nav-link">Customers</router-link></li>
           <li><router-link to="/partners" class="nav-link">🤝 Partners</router-link></li>
           <li><router-link to="/settings" class="nav-link">👥 Settings</router-link></li>
           <li><router-link to="/earnings-expenses" class="nav-link">Earnings & Expenses</router-link></li>
