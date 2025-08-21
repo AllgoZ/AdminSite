@@ -35,10 +35,15 @@
             <li
               v-for="(customer, index) in filteredCustomers"
               :key="customer.id"
-              @dblclick="selectCustomer(customer)"
-              :class="{ selected: selectedCustomer && selectedCustomer.id === customer.id }"
+              @click="selectCustomer(customer)"
+              :class="[
+                { selected: selectedCustomer && selectedCustomer.id === customer.id },
+                { new: isNewCustomer(customer) }
+              ]"
             >
-              {{ index + 1 }}. {{ customer.name }} ({{ customer.uniqueId }})
+              <span class="index">{{ index + 1 }}.</span>
+              {{ customer.name }} ({{ customer.uniqueId }})
+              <span v-if="isNewCustomer(customer)" class="badge">New</span>
             </li>
           </ul>
         </div>
@@ -46,6 +51,7 @@
         <div class="customer-details" v-if="selectedCustomer">
           <h2>{{ selectedCustomer.name }} - {{ selectedCustomer.uniqueId }}</h2>
           <p><strong>UID:</strong> {{ selectedCustomer.uid }}</p>
+
           <h3>Cart Items</h3>
           <ul>
             <li v-for="(item, idx) in selectedCustomer.cart" :key="idx">
@@ -53,12 +59,36 @@
               <span v-else>{{ item.name }} - {{ item.quantity }} {{ item.unit }} - ₹{{ item.price }}</span>
             </li>
           </ul>
-          <h3>Orders ({{ orders.length }})</h3>
-          <ul>
-            <li v-for="order in orders" :key="order.orderId">
+
+          <h3>Orders ({{ filteredOrders.length }})</h3>
+          <div class="order-filters">
+            <input v-model="orderSearch" placeholder="Search orders..." class="search" />
+            <input type="date" v-model="orderFilterDate" class="date-filter" />
+          </div>
+          <ul class="orders">
+            <li
+              v-for="order in filteredOrders"
+              :key="order.orderId"
+              @click="selectOrder(order)"
+              :class="{ selected: selectedOrder && selectedOrder.orderId === order.orderId }"
+            >
               {{ order.orderId }} - {{ formatDate(order.orderDate) }} - ₹{{ order.totalAmount }}
             </li>
           </ul>
+
+          <div v-if="selectedOrder" class="order-details">
+            <h4>Order {{ selectedOrder.orderId }}</h4>
+            <p><strong>Date:</strong> {{ formatDate(selectedOrder.orderDate) }}</p>
+            <p><strong>Status:</strong> {{ selectedOrder.status }}</p>
+            <p><strong>Payment:</strong> {{ selectedOrder.paymentMethod }}</p>
+            <p><strong>Total:</strong> ₹{{ selectedOrder.totalAmount }}</p>
+            <h5>Items</h5>
+            <ul>
+              <li v-for="(item, i) in selectedOrder.items" :key="i">
+                {{ item.name }} - {{ item.quantity }} {{ item.unit }} - ₹{{ item.price }}
+              </li>
+            </ul>
+          </div>
         </div>
         <div class="customer-details placeholder" v-else>
           <p>Select a customer to view details</p>
@@ -84,7 +114,10 @@ export default {
       filterDate: '',
       sidebarOpen: false,
       selectedCustomer: null,
-      orders: []
+      orders: [],
+      orderSearch: '',
+      orderFilterDate: '',
+      selectedOrder: null
     };
   },
   computed: {
@@ -97,6 +130,22 @@ export default {
         const matchesDate =
           !this.filterDate ||
           (c.createdAt && c.createdAt.toISOString().slice(0, 10) >= this.filterDate);
+        return matchesSearch && matchesDate;
+      });
+    },
+    filteredOrders() {
+      return this.orders.filter((o) => {
+        const matchesSearch =
+          !this.orderSearch ||
+          o.orderId.toLowerCase().includes(this.orderSearch.toLowerCase());
+        const orderDate = o.orderDate
+          ? o.orderDate.toDate
+            ? o.orderDate.toDate()
+            : new Date(o.orderDate.seconds * 1000)
+          : null;
+        const matchesDate =
+          !this.orderFilterDate ||
+          (orderDate && orderDate.toISOString().slice(0, 10) >= this.orderFilterDate);
         return matchesSearch && matchesDate;
       });
     }
@@ -123,11 +172,20 @@ export default {
     },
     async selectCustomer(customer) {
       this.selectedCustomer = customer;
+      this.selectedOrder = null;
       const ordersRef = collection(db, 'orders', customer.customerId || customer.id, 'orders');
       const snap = await getDocs(ordersRef);
       this.orders = snap.docs
         .map((d) => d.data())
         .sort((a, b) => (b.orderDate?.seconds || 0) - (a.orderDate?.seconds || 0));
+    },
+    selectOrder(order) {
+      this.selectedOrder = order;
+    },
+    isNewCustomer(customer) {
+      if (!customer.createdAt) return false;
+      const now = Date.now();
+      return now - customer.createdAt.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
     }
   },
   created() {
@@ -239,8 +297,22 @@ export default {
   border-bottom: 1px solid #eee;
   cursor: pointer;
 }
+.customer-list li:hover {
+  background: #f1f7ff;
+}
 .customer-list li.selected {
   background: #c4f8ff;
+}
+.customer-list li.new {
+  background: #e0ffd4;
+}
+.badge {
+  background: #ff7f50;
+  color: #fff;
+  font-size: 12px;
+  padding: 0 4px;
+  margin-left: 0.5rem;
+  border-radius: 3px;
 }
 .filters {
   display: flex;
@@ -261,6 +333,24 @@ export default {
   padding: 1rem;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
+}
+.orders li {
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+.orders li.selected {
+  background: #c4f8ff;
+}
+.order-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.order-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
 }
 .customer-details.placeholder {
   display: flex;
