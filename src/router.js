@@ -7,6 +7,7 @@ import LoginPage from './views/LoginPage.vue';
 import OverviewAnalytics from './views/OverviewAnalytics.vue';
 import SettingsPage from './views/SettingsPage.vue';
 import CustomersPage from './views/CustomersPage.vue';
+import EarningsExpenses from './views/EarningsExpenses.vue';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const routes = [
@@ -45,6 +46,12 @@ const routes = [
     path: '/customers',
     name: 'CustomersPage',
     component: CustomersPage,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/earnings-expenses',
+    name: 'EarningsExpenses',
+    component: EarningsExpenses,
     meta: { requiresAuth: true }
   },
   {
