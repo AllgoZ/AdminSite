@@ -3,7 +3,6 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import { auth } from './firebase/firebase'; // ✅ Make sure this imports correctly
-import './index.css';
 
 let app;
 
