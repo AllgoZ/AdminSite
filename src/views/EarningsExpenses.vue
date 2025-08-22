@@ -31,7 +31,7 @@
       <div class="summary-cards">
         <div class="card">
           <h3>Total Sales</h3>
-          <p>₹{{ totalSales }}</p>
+          <p>₹{{ totalSales.toFixed(2) }}</p>
         </div>
         <div class="card">
           <h3>Orders</h3>
@@ -219,7 +219,7 @@ export default {
             breakdown,
             paymentMethod: order.paymentMethod || '',
             status: order.status || '',
-            amount: order.totalAmount || 0,
+            amount: Number(order.totalAmount) || 0,
             notes: order.notes || ''
           });
         }
@@ -266,9 +266,18 @@ export default {
       updateCharts();
     }
 
-    const totalSales = computed(() => sales.value.reduce((sum,s) => sum + s.amount,0));
-    const numberOfOrders = computed(() => sales.value.length);
-    const avgOrderValue = computed(() => numberOfOrders.value ? totalSales.value/numberOfOrders.value : 0);
+    const totalSales = computed(() =>
+      sales.value.reduce((sum, s) => {
+        const amount = s.status === 'Delivered' ? Number(s.amount) || 0 : 0;
+        return sum + amount;
+      }, 0)
+    );
+    const numberOfOrders = computed(() =>
+      sales.value.filter(s => s.status === 'Delivered').length
+    );
+    const avgOrderValue = computed(() =>
+      numberOfOrders.value ? totalSales.value / numberOfOrders.value : 0
+    );
     const totalExpenses = computed(() => expenses.value.reduce((sum,e)=>sum + Number(e.amount||0),0));
     const netProfit = computed(() => totalSales.value - totalExpenses.value);
 
