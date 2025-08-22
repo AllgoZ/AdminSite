@@ -182,6 +182,8 @@ import { Chart, registerables } from 'chart.js';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppHeader from '@/components/AppHeader.vue';
 import AppFooter from '@/components/AppFooter.vue';
+import { collection, doc, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase/firebase';
 Chart.register(...registerables);
 
 export default {
@@ -197,19 +199,33 @@ export default {
     const stores = ref(['Main Branch', 'Outlet 2']);
     const categories = ref(['Fruits', 'Vegetables']);
 
-    const sales = ref([
-      {
-        date: new Date().toISOString().slice(0,16).replace('T',' '),
-        orderId: '2025PT17-0001',
-        customer: 'Abin',
-        items: 2,
-        breakdown: 'Panneer grapes x1, Dragon Fruit x1',
-        paymentMethod: 'Cash on Delivery',
-        status: 'Delivered',
-        amount: 204,
-        notes: ''
+    const sales = ref([]);
+    async function fetchSales(){
+      const salesData = [];
+      const ordersParentSnap = await getDocs(collection(db, 'orders'));
+      for(const parentDoc of ordersParentSnap.docs){
+        const orderSnap = await getDocs(collection(doc(db, 'orders', parentDoc.id), 'orders'));
+        for(const docSnap of orderSnap.docs){
+          const order = docSnap.data();
+          const dateObj = order.orderDate?.toDate ? order.orderDate.toDate() : null;
+          const date = dateObj ? dateObj.toISOString().slice(0,16).replace('T',' ') : (order.orderDate || '');
+          const itemsArr = order.items || [];
+          const breakdown = itemsArr.map(i=>`${i.name} x${i.quantity}`).join(', ');
+          salesData.push({
+            date,
+            orderId: order.orderId || docSnap.id,
+            customer: order.customerName || order.customerUID || '',
+            items: itemsArr.length,
+            breakdown,
+            paymentMethod: order.paymentMethod || '',
+            status: order.status || '',
+            amount: order.totalAmount || 0,
+            notes: order.notes || ''
+          });
+        }
       }
-    ]);
+      sales.value = salesData;
+    }
 
     const expenses = ref([]);
 
@@ -289,7 +305,8 @@ export default {
       });
     }
 
-    onMounted(()=>{
+    onMounted(async ()=>{
+      await fetchSales();
       updateCharts();
     });
 
