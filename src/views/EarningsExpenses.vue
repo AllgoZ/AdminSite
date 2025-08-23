@@ -83,8 +83,10 @@
           <input type="date" v-model="expenseForm.date" />
           <select v-model="expenseForm.type">
             <option disabled value="">Expense Type</option>
-            <option v-for="t in expenseTypes" :key="t">{{ t }}</option>
+            <option v-for="t in expenseTypes" :key="t" :value="t">{{ t }}</option>
+            <option value="new">New</option>
           </select>
+          <input v-if="expenseForm.type === 'new'" type="text" v-model="expenseForm.customType" placeholder="New expense type" />
           <input type="text" v-model="expenseForm.description" placeholder="Description" />
           <input type="number" v-model.number="expenseForm.amount" placeholder="Amount" />
           <select v-model="expenseForm.mode">
@@ -127,10 +129,21 @@
         <div class="section-header">
           <h2>Sales</h2>
           <div class="export-buttons">
-            <button @click="exportCSV(sales, 'sales')">CSV</button>
-            <button @click="exportExcel(sales, 'sales')">Excel</button>
+            <button @click="exportCSV(filteredSales, 'sales')">CSV</button>
+            <button @click="exportExcel(filteredSales, 'sales')">Excel</button>
             <button @click="exportPDF('salesTable')">PDF</button>
           </div>
+        </div>
+        <div class="sales-filters">
+          <label>Status
+            <select v-model="salesStatusFilter">
+              <option value="">All</option>
+              <option>New</option>
+              <option>Confirmed</option>
+              <option>Delivered</option>
+              <option>Cancelled</option>
+            </select>
+          </label>
         </div>
 
         <table id="salesTable">
@@ -148,7 +161,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in sales" :key="s.orderId">
+            <tr v-for="s in filteredSales" :key="s.orderId">
               <td>{{ s.date }}</td>
               <td>{{ s.orderId }}</td>
               <td>{{ s.customer }}</td>
@@ -200,6 +213,11 @@ export default {
     const categories = ref(['Fruits', 'Vegetables']);
 
     const sales = ref([]);
+    const salesStatusFilter = ref('');
+    const filteredSales = computed(() =>
+      sales.value.filter(s => !salesStatusFilter.value || s.status === salesStatusFilter.value)
+    );
+
     async function fetchSales(){
       const salesData = [];
       const ordersParentSnap = await getDocs(collection(db, 'orders'));
@@ -232,6 +250,7 @@ export default {
     const expenseForm = reactive({
       date: new Date().toISOString().slice(0,10),
       type: '',
+      customType: '',
       description: '',
       amount: null,
       mode: '',
@@ -239,7 +258,7 @@ export default {
       addedBy: 'Admin'
     });
 
-    const expenseTypes = ['Inventory','Salaries','Rent','Utilities','Delivery','Marketing','Misc'];
+    const expenseTypes = ref(['Inventory','Salaries','Rent','Utilities','Delivery','Marketing','Misc']);
     const showExpenseForm = ref(false);
 
     function toggleSidebar(){
@@ -255,9 +274,22 @@ export default {
     }
 
     function addExpense(){
-      expenses.value.push({ ...expenseForm });
+      const type = expenseForm.type === 'new' ? expenseForm.customType : expenseForm.type;
+      expenses.value.push({
+        date: expenseForm.date,
+        type,
+        description: expenseForm.description,
+        amount: expenseForm.amount,
+        mode: expenseForm.mode,
+        attachment: expenseForm.attachment,
+        addedBy: expenseForm.addedBy
+      });
+      if(expenseForm.type === 'new' && expenseForm.customType){
+        expenseTypes.value.push(expenseForm.customType);
+      }
       expenseForm.date = new Date().toISOString().slice(0,10);
       expenseForm.type = '';
+      expenseForm.customType = '';
       expenseForm.description = '';
       expenseForm.amount = null;
       expenseForm.mode = '';
@@ -293,7 +325,7 @@ export default {
     function updateCharts(){
       const salesDates = sales.value.map(s=>s.date);
       const salesAmounts = sales.value.map(s=>s.amount);
-      const expenseTotals = expenseTypes.map(t => expenses.value.filter(e=>e.type===t).reduce((sum,e)=>sum+Number(e.amount||0),0));
+      const expenseTotals = expenseTypes.value.map(t => expenses.value.filter(e=>e.type===t).reduce((sum,e)=>sum+Number(e.amount||0),0));
       const profitData = salesAmounts.map((amt, idx)=> amt - (expenses.value[idx]?.amount || 0));
 
       if(salesChart){ salesChart.destroy(); }
@@ -306,7 +338,7 @@ export default {
       });
       expenseChart = buildChart(document.getElementById('expenseBreakdown'), {
         type: 'pie',
-        data: { labels: expenseTypes, datasets: [{ data: expenseTotals, backgroundColor:['#ff6384','#36a2eb','#ffcd56','#4bc0c0','#9966ff','#c9cbcf','#f87979'] }] }
+        data: { labels: expenseTypes.value, datasets: [{ data: expenseTotals, backgroundColor:['#ff6384','#36a2eb','#ffcd56','#4bc0c0','#9966ff','#c9cbcf','#f87979'] }] }
       });
       profitChart = buildChart(document.getElementById('profitTrend'), {
         type: 'line',
@@ -345,7 +377,8 @@ export default {
     return {
       sidebarOpen, toggleSidebar,
       filters, stores, categories, applyFilters,
-      sales, expenses, expenseForm, expenseTypes, showExpenseForm, addExpense, onFileChange,
+      sales, salesStatusFilter, filteredSales,
+      expenses, expenseForm, expenseTypes, showExpenseForm, addExpense, onFileChange,
       totalSales, numberOfOrders, avgOrderValue, totalExpenses, netProfit,
       monthlySales, monthlyExpenses, monthlyProfit,
       exportCSV, exportExcel, exportPDF
@@ -367,6 +400,9 @@ export default {
 .expense-form, .filters label { display:flex; flex-direction:column; }
 .expense-form { gap:.5rem; margin-bottom:1rem; }
 .expense-form input, .expense-form select { padding:.5rem; }
+.sales-filters { margin-bottom:.5rem; }
+.sales-filters label { display:flex; flex-direction:column; }
+.sales-filters select { padding:.5rem; }
 .btn { padding:.5rem 1rem; background:#007aff; color:white; border:none; border-radius:4px; cursor:pointer; }
 .export-buttons button { margin-left:.5rem; }
 .expenses table, .sales table { width:100%; border-collapse:collapse; background:white; }
