@@ -12,7 +12,7 @@
         <li><router-link to="/customers" class="nav-link">Customers</router-link></li>
         <li><router-link to="/partners" class="nav-link">🤝 Partners</router-link></li>
         <li><router-link to="/settings" class="nav-link">⚙️ Settings</router-link></li>
-        <li><router-link to="/earnings-expenses" class="nav-link">Earnings & Expenses</router-link></li>
+        <li><router-link to="/earnings-expenses" class="nav-link">💰 Earnings & Expenses</router-link></li>
       </ul>
     </nav>
   </aside>
