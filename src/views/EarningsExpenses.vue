@@ -289,7 +289,7 @@ import { Chart, registerables } from 'chart.js';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppHeader from '@/components/AppHeader.vue';
 import AppFooter from '@/components/AppFooter.vue';
-import { collection, doc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, addDoc } from 'firebase/firestore';
 import { db } from '@/firebase/firebase';
 Chart.register(...registerables);
 
@@ -336,6 +336,18 @@ export default {
     }
 
     const expenses = ref([]);
+    const expenseDocRef = doc(db, 'expenses', 'expensesDoc');
+
+    async function fetchExpenses(){
+      const docSnap = await getDoc(expenseDocRef);
+      if(!docSnap.exists()){
+        await setDoc(expenseDocRef, { createdAt: new Date() });
+        expenses.value = [];
+      } else {
+        const snap = await getDocs(collection(expenseDocRef, 'records'));
+        expenses.value = snap.docs.map(d => d.data());
+      }
+    }
 
     const expenseForm = reactive({
       date: new Date().toISOString().slice(0,10),
@@ -355,17 +367,18 @@ export default {
     function applyFilters(){ /* hook Firestore where clauses if needed */ }
     function onFileChange(e){ expenseForm.attachment = e.target.files[0]; }
 
-    function addExpense(){
+    async function addExpense(){
       const type = expenseForm.type === 'new' ? expenseForm.customType : expenseForm.type;
-      expenses.value.push({
+      const newExpense = {
         date: expenseForm.date,
         type,
         description: expenseForm.description,
         amount: expenseForm.amount,
         mode: expenseForm.mode,
-        attachment: expenseForm.attachment,
         addedBy: expenseForm.addedBy
-      });
+      };
+      await addDoc(collection(expenseDocRef, 'records'), newExpense);
+      expenses.value.push(newExpense);
       if(expenseForm.type === 'new' && expenseForm.customType){
         expenseTypes.value.push(expenseForm.customType);
       }
@@ -477,7 +490,7 @@ export default {
       });
     }
 
-    onMounted(async ()=>{ await fetchSales(); updateCharts(); });
+    onMounted(async ()=>{ await fetchSales(); await fetchExpenses(); updateCharts(); });
 
     function exportCSV(data, name){
       const headers = Object.keys(data[0] || {});
